@@ -1,0 +1,73 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+
+#define SERVO_FREQ 60
+#define OSCIL_FREQ 25000000
+
+Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x40);
+
+#define SERVOMIN_US 500
+#define SERVOMAX_US 2500
+#define ANGLE_RANGE 180
+
+// Array to hold the offsets you find
+int offsets[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+void setup() {
+  Serial.begin(19200);
+  while (!Serial && millis() < 3000);
+
+  pwm1.begin();
+  pwm1.setOscillatorFrequency(OSCIL_FREQ);
+  pwm1.setPWMFreq(SERVO_FREQ);
+
+  Serial.println("--- CALIBRATION TOOL ---");
+  Serial.println("Type servo number followed by '+' or '-'");
+  Serial.println("Example: '0+' moves servo 0 forward.");
+  Serial.println("Example: '5-' moves servo 5 backward.");
+  Serial.println("------------------------");
+
+  // Move all to 90 (center) to start
+  for (int i = 0; i < 12; i++) {
+    updateServo(i);
+  }
+}
+
+void loop() {
+  if (Serial.available()) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+    
+    // Parse input (e.g., "0+" or "11-")
+    int servoID = input.substring(0, input.length() - 1).toInt();
+    char action = input.charAt(input.length() - 1);
+
+    if (servoID >= 0 && servoID <= 11) {
+      if (action == '+') {
+        offsets[servoID] += 1; // Change by 1 degree
+      } else if (action == '-') {
+        offsets[servoID] -= 1;
+      }
+      
+      updateServo(servoID);
+      printOffsets();
+    }
+  }
+}
+
+void updateServo(int id) {
+  // 90 is the target "Home", we add the offset to correct it
+  int finalAngle = 90 + offsets[id];
+  long pulse_us = map(finalAngle, 0, ANGLE_RANGE, SERVOMIN_US, SERVOMAX_US);
+  pwm1.writeMicroseconds(id, pulse_us);
+}
+
+void printOffsets() {
+  Serial.println("\nCurrent Offsets (COPY THESE):");
+  Serial.print("int servoOffsets[] = {");
+  for (int i = 0; i < 12; i++) {
+    Serial.print(offsets[i]);
+    if (i < 11) Serial.print(", ");
+  }
+  Serial.println("};");
+}
