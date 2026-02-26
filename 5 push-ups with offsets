@@ -1,0 +1,104 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+
+// Official NovaSM3 settings
+#define SERVO_FREQ 60        
+#define OSCIL_FREQ 25000000  
+
+Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x40);
+
+// Servo timing for 180-degree servos
+#define SERVOMIN_US 500  
+#define SERVOMAX_US 2500 
+#define ANGLE_RANGE 180 
+
+// --- YOUR FINAL CALIBRATED OFFSETS ---
+// {-3, 7, -4, -3, -2, -2, 3, -1, 3, 2, 4, 7}
+int servoOffsets[] = {-3, 7, -4, -3, -2, -2, 3, -1, 3, 2, 4, 7};
+
+// --- PIN GROUPS ---
+// LEFT SIDE (Back Left, Front Left)
+int leftThighs[] = {1, 4}; 
+int leftKnees[]  = {2, 5};
+
+// RIGHT SIDE (Back Right, Front Right)
+int rightThighs[] = {7, 10}; 
+int rightKnees[]  = {8, 11};
+
+void setup() {
+  Serial.begin(19200);
+  while (!Serial && millis() < 3000); 
+
+  pwm1.begin();
+  pwm1.setOscillatorFrequency(OSCIL_FREQ);
+  pwm1.setPWMFreq(SERVO_FREQ);
+
+  delay(1000);
+  Serial.println("SpotMicro: Calibrated Synchronous Push-Ups");
+
+  // 1. Move to Calibrated Home (90 + Offset)
+  Serial.println("Moving to Home position...");
+  for (int i = 0; i < 12; i++) {
+    setServoAngle(i, 90);
+  }
+
+  // 2. WAIT FOR 5 SECONDS
+  Serial.println("Holding Home for 5 seconds...");
+  delay(5000); 
+
+  // 3. Perform 5 Push-Ups
+  Serial.println("Starting Push-ups...");
+  for (int rep = 1; rep <= 5; rep++) {
+    Serial.print("Push-up #"); Serial.println(rep);
+
+    // --- GOING DOWN ---
+    for (int offset = 0; offset <= 30; offset++) {
+      for (int i = 0; i < 2; i++) {
+        // Left Side: Thighs Up (+), Knees Down (-)
+        setServoAngle(leftThighs[i], 90 + offset); 
+        setServoAngle(leftKnees[i], 90 - offset);
+
+        // Right Side: Thighs Up (-), Knees Down (+) [Mirrored]
+        setServoAngle(rightThighs[i], 90 - offset); 
+        setServoAngle(rightKnees[i], 90 + offset);
+      }
+      delay(20); // Control speed
+    }
+
+    delay(500); // Hold at bottom
+
+    // --- GOING UP ---
+    for (int offset = 30; offset >= 0; offset--) {
+      for (int i = 0; i < 2; i++) {
+        // Left Side Return
+        setServoAngle(leftThighs[i], 90 + offset);
+        setServoAngle(leftKnees[i], 90 - offset);
+
+        // Right Side Return
+        setServoAngle(rightThighs[i], 90 - offset);
+        setServoAngle(rightKnees[i], 90 + offset);
+      }
+      delay(15); // Slightly faster up
+    }
+    
+    delay(1000); // Hold at top
+  }
+  
+  Serial.println("Push-ups complete. Holding stance.");
+}
+
+void loop() {
+  // Stay holding the standing position
+}
+
+// Function to apply angle + calibration offset
+void setServoAngle(int servoNum, int targetAngle) {
+  // Add the offset to the target angle
+  int calibratedAngle = targetAngle + servoOffsets[servoNum];
+
+  // Safety: constrain to keep within 0-180 range
+  calibratedAngle = constrain(calibratedAngle, 0, 180);
+
+  long pulse_us = map(calibratedAngle, 0, ANGLE_RANGE, SERVOMIN_US, SERVOMAX_US);
+  pwm1.writeMicroseconds(servoNum, pulse_us);
+}
