@@ -1,0 +1,52 @@
+#include <Wire.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+
+Adafruit_MPU6050 mpu;
+
+void setup() {
+  Serial.begin(19200);
+  while (!Serial && millis() < 3000);
+
+  Serial.println("Initializing MPU6050...");
+
+  // The NovaSM3 design uses the Teensy 4.0's secondary I2C bus (Wire1)
+  // SDA is Pin 17, SCL is Pin 16
+  Wire1.begin();
+  Wire1.setSDA(17);
+  Wire1.setSCL(16);
+
+  // Initialize the MPU6050 on address 0x68 using Wire1
+  if (!mpu.begin(0x68, &Wire1)) {
+    Serial.println("Failed to find MPU6050 chip. Check wiring!");
+    while (1) {
+      delay(10); // Halt if not found
+    }
+  }
+  Serial.println("MPU6050 Found and Ready!");
+
+  // Set sensor ranges for smooth reading
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  
+  delay(100);
+}
+
+void loop() {
+  // Create variables to hold the sensor data
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  // Calculate Pitch and Roll in degrees using the Accelerometer data
+  // Using basic trigonometry to convert gravity vectors into degrees
+  float roll  = atan2(a.acceleration.y, a.acceleration.z) * 180.0 / PI;
+  float pitch = atan2(-a.acceleration.x, sqrt(a.acceleration.y * a.acceleration.y + a.acceleration.z * a.acceleration.z)) * 180.0 / PI;
+
+  // Print out the values
+  Serial.print("Pitch (Front/Back tilt): ");
+  Serial.print(pitch);
+  Serial.print("   |   Roll (Left/Right tilt): ");
+  Serial.println(roll);
+
+  delay(100); // Update 10 times a second
+}
