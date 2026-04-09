@@ -1,0 +1,115 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <PID_v2.h>
+
+// --- PCA9685 SETTINGS ---
+#define SERVO_FREQ 60        
+#define OSCIL_FREQ 25000000  
+Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x40);
+
+#define SERVOMIN_US 500  
+#define SERVOMAX_US 2500 
+#define ANGLE_RANGE 180 
+
+// --- YOUR CALIBRATED OFFSETS ---
+int servoOffsets[] = {-3, 7, -4, -3, -2, -2, 3, -1, 3, 2, 4, 7};
+
+// --- PIN GROUPS ---
+int leftThighs[] = {1, 4};   // Back Left (0), Front Left (1)
+int leftKnees[]  = {2, 5};
+int rightThighs[] = {7, 10}; // Back Right (0), Front Right (1)
+int rightKnees[]  = {8, 11};
+
+// --- MPU6050 SETTINGS ---
+Adafruit_MPU6050 mpu;
+
+// --- PID_v2 SETTINGS ---
+double Kp = 0.5, Ki = 0.05, Kd = 0.02; 
+PID_v2 pitchPID(Kp, Ki, Kd, PID::Direct);
+
+// --- READY STANCE OFFSET ---
+// How many degrees away from 90 the legs should bend to crouch
+int crouchOffset = 20; 
+
+void setup() {
+  Serial.begin(19200);
+  while (!Serial && millis() < 3000); 
+
+  pwm1.begin();
+  pwm1.setOscillatorFrequency(OSCIL_FREQ);
+  pwm1.setPWMFreq(SERVO_FREQ);
+
+  Wire1.begin();
+  Wire1.setSDA(17);
+  Wire1.setSCL(16);
+  if (!mpu.begin(0x68, &Wire1)) {
+    Serial.println("Failed to find MPU6050 chip!");
+    while (1) { delay(10); }
+  }
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+
+  pitchPID.SetOutputLimits(-30, 30); 
+  pitchPID.Start(0.0, 0.0, 0.0); 
+
+  delay(1000);
+  Serial.println("SpotMicro: PID_v2 Pitch Leveling Ready");
+
+  // Move to Ready Stance
+  updateStance(0); 
+  delay(2000);
+}
+
+void loop() {
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  float pitch = atan2(-a.acceleration.x, sqrt(a.acceleration.y * a.acceleration.y + a.acceleration.z * a.acceleration.z)) * 180.0 / PI;
+
+  double output = pitchPID.Run(pitch); 
+  updateStance(output);
+
+  Serial.print("Pitch: "); 
+  Serial.print(pitch);
+  Serial.print("  |  Correction: ");
+  Serial.println(output);
+
+  delay(20); 
+}
+
+// Applies base stance + PID correction 
+void updateStance(double correction) {
+  // Left side crouch base angles
+  int leftThighBase = 90 + crouchOffset;  // 110
+  int leftKneeBase  = 90 - crouchOffset;  // 70
+  
+  // Right side crouch base angles (Mirrored)
+  int rightThighBase = 90 - crouchOffset; // 70
+  int rightKneeBase  = 90 + crouchOffset; // 110
+
+  // --- FRONT LEFT ---
+  setServoAngle(leftThighs[1], leftThighBase + correction);
+  setServoAngle(leftKnees[1],  leftKneeBase  - correction);
+  
+  // --- BACK LEFT ---
+  setServoAngle(leftThighs[0], leftThighBase - correction);
+  setServoAngle(leftKnees[0],  leftKneeBase  + correction);
+
+  // --- FRONT RIGHT --- (Mirrored correction logic)
+  setServoAngle(rightThighs[1], rightThighBase - correction);
+  setServoAngle(rightKnees[1],  rightKneeBase  + correction);
+  
+  // --- BACK RIGHT --- (Mirrored correction logic)
+  setServoAngle(rightThighs[0], rightThighBase + correction);
+  setServoAngle(rightKnees[0],  rightKneeBase  - correction);
+}
+
+// Applies offset and sends PWM
+void setServoAngle(int servoNum, int targetAngle) {
+  int calibratedAngle = targetAngle + servoOffsets[servoNum];
+  calibratedAngle = constrain(calibratedAngle, 0, 180);
+  long pulse_us = map(calibratedAngle, 0, ANGLE_RANGE, SERVOMIN_US, SERVOMAX_US);
+  pwm1.writeMicroseconds(servoNum, pulse_us);
+}
