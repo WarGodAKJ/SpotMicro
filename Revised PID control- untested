@@ -1,0 +1,147 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <PID_v2.h>
+
+// --- PCA9685 SETTINGS ---
+#define SERVO_FREQ 60        
+#define OSCIL_FREQ 25000000  
+Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x40);
+
+#define SERVOMIN_US 500  
+#define SERVOMAX_US 2500 
+#define ANGLE_RANGE 180 
+
+// --- YOUR CALIBRATED OFFSETS ---
+int servoOffsets[] = {-3, 7, -4, -3, -2, -2, 3, -1, 3, 2, 4, 7};
+
+// --- PIN GROUPS ---
+int leftThighs[] = {1, 4};   
+int leftKnees[]  = {2, 5};
+int rightThighs[] = {7, 10}; 
+int rightKnees[]  = {8, 11};
+int hips[]       = {0, 3, 6, 9};
+
+// --- MPU6050 SETTINGS ---
+Adafruit_MPU6050 mpu;
+float smoothedPitch = 0.0; // Variable to hold our filtered sensor data
+
+// --- PID_v2 SETTINGS ---
+// Kd set to 0.0 to prevent vibration twitching. 
+// Kp lowered slightly for smoother, less aggressive movement.
+double Kp = 0.6, Ki = 0.0, Kd = 0.0; 
+PID_v2 pitchPID(Kp, Ki, Kd, PID::Direct);
+
+// --- READY STANCE OFFSET ---
+int crouchOffset = 20; 
+float baselinePitch = 0.0; // Will be calculated dynamically in setup
+
+void setup() {
+  Serial.begin(19200);
+  while (!Serial && millis() < 3000); 
+
+  pwm1.begin();
+  pwm1.setOscillatorFrequency(OSCIL_FREQ);
+  pwm1.setPWMFreq(SERVO_FREQ);
+
+  Wire1.begin();
+  Wire1.setSDA(17);
+  Wire1.setSCL(16);
+  if (!mpu.begin(0x68, &Wire1)) {
+    Serial.println("Failed to find MPU6050 chip!");
+    while (1) { delay(10); }
+  }
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+
+  // 1. Move to Ready Stance and lock hips
+  for (int i = 0; i < 4; i++) { setServoAngle(hips[i], 90); }
+  updateStance(0); 
+  
+  Serial.println("Robot in stance. Waiting 2 seconds to settle...");
+  delay(2000);
+
+  // 2. AUTO-ZERO CALIBRATION
+  Serial.println("Calibrating Level Baseline. DO NOT TOUCH THE TABLE!");
+  float pitchSum = 0;
+  for(int i = 0; i < 50; i++) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+    float p = atan2(-a.acceleration.x, sqrt(a.acceleration.y * a.acceleration.y + a.acceleration.z * a.acceleration.z)) * 180.0 / PI;
+    pitchSum += p;
+    delay(20); // sample over 1 second
+  }
+  
+  baselinePitch = pitchSum / 50.0;
+  smoothedPitch = baselinePitch; // Initialize the filter
+  
+  Serial.print("Calibration Complete. Baseline resting pitch: ");
+  Serial.println(baselinePitch);
+
+  // 3. Initialize PID with our new perfectly customized baseline
+  pitchPID.SetOutputLimits(-30, 30); 
+  pitchPID.Start(baselinePitch, 0.0, baselinePitch); 
+  
+  Serial.println("SpotMicro: Smoothed Pitch Leveling Ready!");
+}
+
+void loop() {
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  float rawPitch = atan2(-a.acceleration.x, sqrt(a.acceleration.y * a.acceleration.y + a.acceleration.z * a.acceleration.z)) * 180.0 / PI;
+
+  // --- LOW PASS FILTER ---
+  // Takes 15% of the new reading and 85% of the old reading. 
+  // This drastically smooths out the mechanical twitches and vibrations.
+  smoothedPitch = (0.15 * rawPitch) + (0.85 * smoothedPitch);
+
+  // Feed the smooth data into the PID
+  double output = pitchPID.Run(smoothedPitch); 
+  
+  // Apply correction
+  updateStance(output);
+
+  Serial.print("Raw: "); 
+  Serial.print(rawPitch);
+  Serial.print(" | Smooth: "); 
+  Serial.print(smoothedPitch);
+  Serial.print(" | Correction: ");
+  Serial.println(output);
+
+  delay(20); 
+}
+
+// Applies base stance + PID correction 
+void updateStance(double correction) {
+  int leftThighBase = 90 + crouchOffset; 
+  int leftKneeBase  = 90 - crouchOffset; 
+  int rightThighBase = 90 - crouchOffset; 
+  int rightKneeBase  = 90 + crouchOffset; 
+
+  // --- FRONT LEFT ---
+  setServoAngle(leftThighs[1], leftThighBase + correction);
+  setServoAngle(leftKnees[1],  leftKneeBase  - correction);
+  // --- BACK LEFT ---
+  setServoAngle(leftThighs[0], leftThighBase - correction);
+  setServoAngle(leftKnees[0],  leftKneeBase  + correction);
+
+  // --- FRONT RIGHT ---
+  setServoAngle(rightThighs[1], rightThighBase - correction);
+  setServoAngle(rightKnees[1],  rightKneeBase  + correction);
+  // --- BACK RIGHT ---
+  setServoAngle(rightThighs[0], rightThighBase + correction);
+  setServoAngle(rightKnees[0],  rightKneeBase  - correction);
+
+  // Reinforce hips
+  for (int i = 0; i < 4; i++) { setServoAngle(hips[i], 90); }
+}
+
+// Applies offset and sends PWM
+void setServoAngle(int servoNum, int targetAngle) {
+  int calibratedAngle = targetAngle + servoOffsets[servoNum];
+  calibratedAngle = constrain(calibratedAngle, 0, 180);
+  long pulse_us = map(calibratedAngle, 0, ANGLE_RANGE, SERVOMIN_US, SERVOMAX_US);
+  pwm1.writeMicroseconds(servoNum, pulse_us);
+}
