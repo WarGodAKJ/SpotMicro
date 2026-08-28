@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "project": "SpotMicro Quadruped Robot",
+  "controller": {
+    "model": "Teensy 4.0",
+    "serial_baud": 19200
+  },
+  "servo_driver": {
+    "model": "PCA9685",
+    "i2c_address": "0x40",
+    "frequency_hz": 60,
+    "oscillator_hz": 25000000,
+    "pulse_min_us": 500,
+    "pulse_max_us": 2500,
+    "angle_range_deg": 180
+  },
+  "imu": {
+    "model": "MPU6050",
+    "i2c_address": "0x68",
+    "bus": "Wire1",
+    "sda_pin": 17,
+    "scl_pin": 16
+  },
+  "servos": [
+    {"channel": 0, "leg": "rear_left", "joint": "hip", "servo_class": "20kg", "offset_deg": -3},
+    {"channel": 1, "leg": "rear_left", "joint": "thigh", "servo_class": "20kg", "offset_deg": 7},
+    {"channel": 2, "leg": "rear_left", "joint": "knee", "servo_class": "35kg", "offset_deg": -4},
+    {"channel": 3, "leg": "front_left", "joint": "hip", "servo_class": "20kg", "offset_deg": -3},
+    {"channel": 4, "leg": "front_left", "joint": "thigh", "servo_class": "20kg", "offset_deg": -2},
+    {"channel": 5, "leg": "front_left", "joint": "knee", "servo_class": "35kg", "offset_deg": -2},
+    {"channel": 6, "leg": "rear_right", "joint": "hip", "servo_class": "20kg", "offset_deg": 3},
+    {"channel": 7, "leg": "rear_right", "joint": "thigh", "servo_class": "20kg", "offset_deg": -1},
+    {"channel": 8, "leg": "rear_right", "joint": "knee", "servo_class": "35kg", "offset_deg": 3},
+    {"channel": 9, "leg": "front_right", "joint": "hip", "servo_class": "20kg", "offset_deg": 2},
+    {"channel": 10, "leg": "front_right", "joint": "thigh", "servo_class": "20kg", "offset_deg": 4},
+    {"channel": 11, "leg": "front_right", "joint": "knee", "servo_class": "35kg", "offset_deg": 7}
+  ]
+}

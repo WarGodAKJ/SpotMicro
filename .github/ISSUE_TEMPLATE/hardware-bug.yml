@@ -1,0 +1,47 @@
+name: Hardware or motion bug
+description: Report unexpected motion, sensor behavior, power behavior, or a hardware test failure.
+title: "[Hardware]: "
+labels: [hardware]
+body:
+  - type: markdown
+    attributes:
+      value: Disconnect battery power before investigating uncontrolled motion, heating, smoke, odor, or repeated resets.
+  - type: input
+    id: sketch
+    attributes:
+      label: Firmware sketch and commit
+      placeholder: firmware/experiments/pitch_stabilization_v2 at abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware configuration
+      description: Include controller, driver, power rails, IMU, servos, and any wiring changes.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Test steps
+      description: Include the starting pose, support arrangement, and exact action.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: serial
+    attributes:
+      label: Serial output
+      render: text
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: Battery power is disconnected and the robot is safe to inspect.
+          required: true

@@ -1,0 +1,18 @@
+name: Repository checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6.0.2
+      - name: Validate configuration, sketches, links, and provenance
+        run: python3 scripts/check_repository.py
