@@ -1,9 +1,12 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "wiring_revision": "rewired-rear-pair-first",
+  "active_stabilization": "pitch_roll_stabilization_v3",
   "project": "SpotMicro Quadruped Robot",
   "controller": {
     "model": "Teensy 4.0",
-    "serial_baud": 19200
+    "serial_baud": 115200,
+    "utility_serial_baud": 19200
   },
   "servo_driver": {
     "model": "PCA9685",
@@ -19,18 +22,24 @@
     "i2c_address": "0x68",
     "bus": "Wire1",
     "sda_pin": 17,
-    "scl_pin": 16
+    "scl_pin": 16,
+    "clock_hz": 400000,
+    "vin_supply": "Teensy 3.3V",
+    "unused_pins": ["3Vo", "INT"],
+    "axes": {"positive_x": "rear", "positive_y": "right", "positive_z": "up"},
+    "mounting_roll_bias_approx_deg": 5,
+    "bias_compensation": "stationary startup pitch/roll and gyro calibration"
   },
   "servos": [
     {"channel": 0, "leg": "rear_left", "joint": "hip", "servo_class": "20kg", "offset_deg": -3},
     {"channel": 1, "leg": "rear_left", "joint": "thigh", "servo_class": "20kg", "offset_deg": 7},
     {"channel": 2, "leg": "rear_left", "joint": "knee", "servo_class": "35kg", "offset_deg": -4},
-    {"channel": 3, "leg": "front_left", "joint": "hip", "servo_class": "20kg", "offset_deg": -3},
-    {"channel": 4, "leg": "front_left", "joint": "thigh", "servo_class": "20kg", "offset_deg": -2},
-    {"channel": 5, "leg": "front_left", "joint": "knee", "servo_class": "35kg", "offset_deg": -2},
-    {"channel": 6, "leg": "rear_right", "joint": "hip", "servo_class": "20kg", "offset_deg": 3},
-    {"channel": 7, "leg": "rear_right", "joint": "thigh", "servo_class": "20kg", "offset_deg": -1},
-    {"channel": 8, "leg": "rear_right", "joint": "knee", "servo_class": "35kg", "offset_deg": 3},
+    {"channel": 3, "leg": "rear_right", "joint": "hip", "servo_class": "20kg", "offset_deg": 3},
+    {"channel": 4, "leg": "rear_right", "joint": "thigh", "servo_class": "20kg", "offset_deg": -1},
+    {"channel": 5, "leg": "rear_right", "joint": "knee", "servo_class": "35kg", "offset_deg": 3},
+    {"channel": 6, "leg": "front_left", "joint": "hip", "servo_class": "20kg", "offset_deg": -3},
+    {"channel": 7, "leg": "front_left", "joint": "thigh", "servo_class": "20kg", "offset_deg": -2},
+    {"channel": 8, "leg": "front_left", "joint": "knee", "servo_class": "35kg", "offset_deg": -2},
     {"channel": 9, "leg": "front_right", "joint": "hip", "servo_class": "20kg", "offset_deg": 2},
     {"channel": 10, "leg": "front_right", "joint": "thigh", "servo_class": "20kg", "offset_deg": 4},
     {"channel": 11, "leg": "front_right", "joint": "knee", "servo_class": "35kg", "offset_deg": 7}

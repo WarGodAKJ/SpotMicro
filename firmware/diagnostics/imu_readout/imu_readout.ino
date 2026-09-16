@@ -2,7 +2,8 @@
  * @file imu_readout.ino
  * @brief Prints MPU6050 pitch and roll values over USB serial.
  *
- * Hardware status: tested on the project robot.
+ * Original diagnostic tested; axis labels and bus setup updated from the handoff.
+ * Positive pitch = rear raised; positive roll = right raised.
  */
 
 #include <Wire.h>
@@ -23,9 +24,10 @@ void setup() {
 
   Serial.println("Initializing MPU6050...");
 
-  Wire1.begin();
   Wire1.setSDA(kMpuSdaPin);
   Wire1.setSCL(kMpuSclPin);
+  Wire1.begin();
+  Wire1.setClock(400000);
 
   if (!mpu.begin(kMpuAddress, &Wire1)) {
     Serial.println("Failed to find MPU6050 chip. Check wiring!");
@@ -47,15 +49,15 @@ void loop() {
 
   const float roll = atan2(a.acceleration.y, a.acceleration.z) * 180.0 / PI;
   const float pitch = atan2(
-      -a.acceleration.x,
+      a.acceleration.x,
       sqrt(a.acceleration.y * a.acceleration.y +
            a.acceleration.z * a.acceleration.z)) *
       180.0 / PI;
 
   // Print out the values
-  Serial.print("Pitch (Front/Back tilt): ");
+  Serial.print("Pitch (positive rear raised): ");
   Serial.print(pitch);
-  Serial.print("   |   Roll (Left/Right tilt): ");
+  Serial.print("   |   Roll (positive right raised): ");
   Serial.println(roll);
 
   delay(kSamplePeriodMs);

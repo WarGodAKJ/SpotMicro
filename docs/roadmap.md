@@ -1,26 +1,32 @@
 # Development roadmap
 
-## Immediate
+## Implemented in the reported v3 proof of concept
 
-- Hardware-test pitch stabilization v2 in both directions.
-- Record repeatable acceptance criteria and controller telemetry.
-- Add explicit output-enable or emergency-stop handling if supported by the final PCB wiring.
-- Verify the complete power schematic and document Teensy VIN/VUSB isolation.
+- Pitch and roll stabilization, including diagonal mixing and return-to-level.
+- Accelerometer/gyroscope complementary orientation filtering and gyro bias calibration.
+- Startup attitude zeroing, filtered rates/errors, and deadbands.
+- Uniform corner-output scaling and servo slew-rate limiting.
+- Requested and calibrated joint-angle limits.
+- Adaptive accelerometer trust from gravity magnitude and angle disagreement.
 
-## Near term
+These are implemented features with user-reported proof-of-concept results.
+They do not establish performance under all disturbances.
 
-- Add correction deadband, slew-rate limiting, and joint-specific safe angle limits.
-- Add left/right roll stabilization after pitch behavior is repeatable.
-- Replace accelerometer-only tilt with fused accelerometer/gyroscope orientation.
-- Separate hardware configuration from control algorithms in a reusable library.
-- Add hardware-in-the-loop smoke tests for servo order and motion direction.
+## Immediate work
 
-## Long term
+- Retest the remapped repository push-up demo and revised IMU diagnostic.
+- Record quantified angles, timing, repetition counts, and controller telemetry.
+- Detect sustained high-frequency vibration and reduce gains or hold a stable crouch.
+- Add servo acceleration limiting and a latched fall/fault state machine.
+- Handle sensor-read failures, invalid samples, and calibration while moving.
+- Validate excessive-tilt behavior and physical power-off / output-enable provisions.
 
-- Implement a stable standing state machine and fault states.
-- Add inverse kinematics and controlled gait generation.
-- Integrate the Nano-side sensors and display only after the motion controller is stable.
-- Add battery, current, and thermal monitoring with automatic motion shutdown.
-- Document a reproducible mechanical build and wiring revision.
+## Longer term
 
-Features move from experimental to tested only after the procedure in [testing.md](testing.md) is completed and the observed result is recorded.
+- Inverse kinematics and a body-position controller.
+- Gait generation and controlled locomotion.
+- Battery/current monitoring and appropriate shutdown behavior.
+- Nano-side sensors, display, and other peripherals.
+- Reproducible mechanical build and verified wiring revision.
+
+Record physical evidence using [testing.md](testing.md) before upgrading test status.

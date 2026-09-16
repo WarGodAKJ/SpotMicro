@@ -25,7 +25,7 @@ Calibration aligns each mechanically installed servo with the software's 90-degr
    - `h` prints help.
 
 6. Center the hip axes and make the thigh/knee linkages visually symmetric without forcing a joint against a mechanical stop.
-7. Copy the printed array and update [robot.json](../config/robot.json) plus every project sketch that embeds `kServoOffsets`.
+7. Copy the printed array and update [robot.json](../config/robot.json), the active v3 sketch, and the push-up demo. Keep legacy v1/v2 snapshots unchanged.
 8. Run `python scripts/check_repository.py` to confirm the copies agree.
 
 ## Recorded calibration
@@ -33,7 +33,11 @@ Calibration aligns each mechanically installed servo with the software's 90-degr
 The final values from the documented hardware session are:
 
 ```cpp
-{-3, 7, -4, -3, -2, -2, 3, -1, 3, 2, 4, 7}
+{-3, 7, -4, 3, -1, 3, -3, -2, -2, 2, 4, 7}
 ```
 
 Offsets are specific to the installed horns and servos. Recalibrate after replacing a servo, moving a horn, changing linkage geometry, or rebuilding a leg.
+
+These values follow the new order rear-left, rear-right, front-left, front-right.
+The previous middle connector groups exchanged positions; their offsets moved with
+the motors. This is a reordering of existing calibration, not a new calibration measurement.
