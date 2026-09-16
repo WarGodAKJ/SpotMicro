@@ -1,45 +1,91 @@
 # System architecture
 
-## Scope
+## Active controller: pitch/roll stabilization v3
 
-The current experimental firmware controls the twelve leg servos and reads the MPU6050 from a Teensy 4.0. The Arduino Nano, ultrasonic sensors, PIR sensors, displays, audio, radio, and autonomous gait features present in the broader Nova SM3 design are outside the active controller scope.
-
-## Control flow
+The Teensy 4.0 reads the MPU6050 and controls twelve PCA9685-connected servos.
+The user reports successful pitch, roll, diagonal, and return-to-level tests.
+This is an automatic-leveling proof of concept; gait and body-position control remain future work.
 
 ```text
-MPU6050 acceleration
+MPU accelerometer + gyroscope
         |
-        v
-pitch calculation --> optional low-pass filter --> pitch controller
-                                                     |
-                                                     v
-                                  mirrored stance correction
-                                                     |
-                                                     v
-                         calibration offset + angle constraint
-                                                     |
-                                                     v
-                                  PCA9685 --> 12 servos
+adaptive complementary filter (gravity magnitude + angle agreement)
+        |
+pitch and roll error filters
+        |
+two PD controllers
+        |
+four-corner correction mixer
+        |
+uniform scaling + leg slew limiting
+        |
+mirrored thigh/knee commands + calibrated hip hold
 ```
 
-## Pitch stabilization v2
+## Estimation and timing
 
-The latest experiment performs four steps:
+Startup waits five seconds before motion, centers channels sequentially, enters a
+25-degree crouch, settles for two seconds, then averages 250 samples at 4 ms
+intervals. This establishes pitch/roll targets and gyro biases, including the
+approximately 5-degree mounting roll offset.
 
-1. Command a symmetric crouch and actively hold all four hip joints.
-2. Average 50 pitch samples after a two-second settling period and use that average as the level reference.
-3. Apply an exponential moving-average filter with `alpha = 0.15` to reduce vibration-induced noise.
-4. Apply proportional correction with a gain of `0.6`, limited to `+/-30 degrees`, to opposing front and rear leg pairs.
+The nominal controller period is 20 ms (50 Hz); telemetry is scheduled every
+100 ms (10 Hz). Measured dt drives gyro integration and slew limiting, with a
+20 ms fallback for invalid or greater-than-100 ms intervals. Telemetry is decimated,
+but Serial writes are not guaranteed nonblocking on every host connection.
 
-Although the sketch uses the PID_v2 interface, both integral and derivative gains are zero in v2. It therefore behaves as a proportional controller. This deliberately avoids the integral windup observed in v1 and the derivative response to servo vibration.
+Pitch = atan2(ax, sqrt(ay² + az²)), roll = atan2(ay, az).
+Pitch rate = -gyroY and roll rate = gyroX, converted to degrees per second.
+Accelerometer angle alpha is 0.12, gyro-rate alpha 0.10, error alpha 0.12.
+Complementary accelerometer weight is 0.035 multiplied by trust.
 
-## Coordinate and mirroring conventions
+Trust is the product of gravity-magnitude and angle-agreement factors. Magnitude
+trust falls from one to zero as gravity deviation increases from 0.30 to 2.00 m/s²;
+agreement trust falls from one to zero between 2 and 10 degrees of disagreement.
+Low trust reduces accelerometer influence; it does not detect a fall or guarantee stability.
 
-- Front/rear correction is pitch-only.
-- Left/right roll correction is not implemented.
-- The left and right mechanisms are mirrored about the chassis centerline.
-- The project robot's physical channel order is rear-left, front-left, rear-right, front-right.
+## Control geometry
 
-## Provenance boundary
+Pitch gains: Kp 2.2, Kd 0.06. Roll gains: Kp 1.8, Kd 0.06.
+The actual output is Kp * attitude error + Kd * angular rate, with configured sign
++1 on both axes. Deadbands are 0.40 degrees and 1.20 degrees/second.
+Axis outputs are limited to +/-20 degrees.
 
-`firmware/reference/nova_sm3_teensy_v4_2` is an exact upstream source snapshot. All other firmware directories describe the project-specific, contiguous-channel robot. Keeping the two areas separate makes provenance and configuration differences explicit.
+| Leg | Correction |
+| --- | --- |
+| Rear left | +pitch - roll |
+| Rear right | +pitch + roll |
+| Front left | -pitch - roll |
+| Front right | -pitch + roll |
+
+If any corner exceeds +/-20 degrees, all four are scaled together to preserve
+the diagonal ratios. Leg corrections slew at at most 60 degrees/second.
+Base compression 25 degrees plus correction gives 5-45 degrees of compression.
+Left thigh/knee commands are 90+c / 90-c; right commands are mirrored.
+Hips hold nominal 90 degrees plus calibration.
+
+Requested angles are limited to 45-135 degrees; after offsets, commands are
+limited again to 40-140 degrees. Pulse mapping retains fractional angles until
+rounding microseconds for the driver.
+
+## Excessive tilt and remaining limits
+
+When either fused angle differs from its startup target by more than 35 degrees,
+desired corrections become zero and slew toward the base crouch. Servos remain
+powered. This is not a latched emergency stop: correction resumes when the estimate
+returns inside the threshold.
+
+The supplied startup ramp requests 0-25 degrees, but its shared compression helper
+clamps values below 5 degrees to 5. This detail is retained with the tested code.
+Runtime sensor-read failures and non-finite samples have no explicit fault state.
+
+Increasingly rapid support-surface shaking eventually caused overreaction and a
+tip-over. Translational acceleration can resemble gravity tilt and servos cannot
+track arbitrarily fast motion. A vibration mode, acceleration limiting, and fall
+state machine remain pending. No maximum safe disturbance frequency was measured.
+
+## Historical controllers
+
+V1/v2 retain their exact source and old mapping; see [firmware history](../firmware/experiments/README.md).
+The original Nova source remains a separate upstream reference. Nano peripherals,
+radio, displays, and autonomous gait are outside v3's implemented scope.

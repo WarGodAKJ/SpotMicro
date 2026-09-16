@@ -1,48 +1,93 @@
-# Test procedure
+# Test procedure and recorded results
 
-Run the tests in order. A later stage assumes every earlier stage passed.
+## Reported hardware results
 
-## 1. Power-off inspection
+Source: the user-provided repository update handoff, incorporated 2026-09-15.
+These are reported physical observations, not tests run by the repository checker.
+The exact supplied controller is stored as
+[the v3 sketch](../firmware/experiments/pitch_roll_stabilization_v3/pitch_roll_stabilization_v3.ino).
+Its original header says "proof of concept v2"; repository v3 distinguishes it from
+the earlier pitch-only v2.
 
-- Confirm no short exists between each power rail and ground.
-- Confirm PCA9685 signal, V+, and ground orientation for all twelve connectors.
-- Confirm the robot is supported with unobstructed leg travel.
-- Confirm the battery and regulators remain cool before servo motion begins.
+| Milestone | Reported result |
+| --- | --- |
+| Sequential servo activation after rewiring | All twelve channels worked |
+| Pitch, both directions | Successful |
+| Roll, both directions | Successful |
+| Diagonal pitch/roll response | Successful |
+| Return toward level | Stable recovery |
+| Vibration rejection | Improved over previous controller |
+| Increasing high-frequency shaking | Overreaction and tip-over |
 
-## 2. Controller-only test
+The handoff does not provide angle/frequency logs, repetition counts, or separately
+logged results for every diagonal. Do not infer quantified stability margins.
+The remapped repository push-up demo and revised readout still require a retest.
 
-Disconnect the battery and verify that the Teensy accepts a simple upload over USB. Do not proceed if the Teensy repeatedly disconnects, fails to enumerate, or becomes warm.
+## Bring-up
 
-## 3. Servo calibration
+Follow [hardware precautions](hardware.md), verify power-off wiring and rails,
+and support the chassis before initial servo motion. Confirm current groups:
+0-2 rear left, 3-5 rear right, 6-8 front left, 9-11 front right.
+Within each group: hip, thigh, knee.
 
-Run the calibration tool and move only one channel at a time. Stop immediately if a different joint moves, a servo hits a mechanical stop, or the power system heats unexpectedly.
+The reported sequential diagnostic centered with reordered offsets, then moved
+each channel 90 -> 102 -> 78 -> 90, one channel at a time from 0 through 11.
+The exact diagnostic source was not supplied; this records its procedure, not
+an additional delivered sketch. Verify both joint identity and direction.
 
-## 4. IMU diagnostic
+Run [calibration](calibration.md), then the readout diagnostic at 19200 baud.
+Rear raised should give positive pitch; right raised should give positive roll.
+If the Serial Monitor is blank, verify board, USB port, and baud first: the reported
+blank-output incident was a Windows/Arduino COM-port selection issue.
 
-Run `firmware/diagnostics/imu_readout/imu_readout.ino`.
+## Push-up retest
 
-- Pitch should change smoothly when the front or rear of the chassis is raised.
-- Roll should change smoothly when the left or right side is raised.
-- Values should return near their starting values when the robot returns to the same surface.
+The demo now uses the new mapping and offsets. It enters home, waits five seconds,
+performs five repetitions, then holds home. Confirm all legs compress together
+with mirrored left/right commands. Record a new result for this repository revision.
 
-## 5. Push-up demonstration
+## V3 acceptance procedure
 
-Run the push-up sketch with the robot supported. It waits five seconds, completes five cycles, and returns to its calibrated home stance. Verify that front and rear legs move synchronously and that left/right motion is visually mirrored.
+Use a supported robot on a rigid movable surface, with accessible battery disconnect.
+Open the v3 Serial Monitor at 115200 baud. Allow the five-second motion countdown,
+stance transition, two-second settling delay, and calibration to finish undisturbed.
 
-## 6. Stabilization v1 reference
+1. Rear raised: rear legs compress, front legs extend; then return to level.
+2. Front raised: front legs compress, rear legs extend; then return to level.
+3. Right raised: right legs compress, left legs extend; then return to level.
+4. Left raised: left legs compress, right legs extend; then return to level.
+5. Front-right raised: front-right compresses most, rear-left extends most.
+6. Front-left raised: front-left compresses most, rear-right extends most.
+7. Rear-right raised: rear-right compresses most, front-left extends most.
+8. Rear-left raised: rear-left compresses most, front-right extends most.
+9. Apply slow combined disturbances and check repeatable recovery without growing oscillation.
 
-V1 is retained because it produced a successful pitch response during the recorded test. Known issues were delayed recovery after lowering the test board, free hip joints, resting bias, and vibration-driven twitching.
+Keep the initial motions small. Stop on growing oscillation, overheating,
+unexpected reset, or joint-stop contact. Do not reproduce the known high-frequency
+tip-over as a routine acceptance test. Any future frequency sweep needs physical
+fall restraint and a defined stop condition.
 
-## 7. Stabilization v2 experiment
+## Telemetry
 
-V2 is untested. Use a rigid board, a spotter, conservative battery access, and small angles.
+Startup reports PitchTarget and RollTarget. At nominal 10 Hz the controller reports:
 
-1. Keep the board level during startup.
-2. Allow the two-second settling delay and one-second baseline sample period to finish without touching the robot.
-3. Confirm all four hips are actively held and the initial crouch is symmetric.
-4. Raise the rear edge only a few degrees; the rear legs should compress while the front legs extend.
-5. Return to level and confirm recovery.
-6. Repeat with the front edge.
-7. Stop if correction increases the tilt, oscillation grows, or any joint nears its limit.
+| Field | Meaning |
+| --- | --- |
+| Pitch, Roll | Fused orientation in degrees |
+| PitchError, RollError | Filtered deviations from startup targets |
+| Trust | Accelerometer trust, 0 to 1 |
+| LR, RR, FL, FR | Applied leg correction in degrees, before base compression |
 
-Record baseline pitch, raw pitch, filtered pitch, correction output, test direction, recovery behavior, and any oscillation. Do not mark v2 as tested until both directions and return-to-level behavior succeed repeatedly.
+Trust should generally be higher at rest when magnitude and predicted attitude
+agree. Translational disturbances or large disagreement reduce it; low trust
+does not prove vibration recognition. Log raw test action, firmware commit,
+calibration targets, telemetry, recovery, and failures.
+
+The >35-degree deviation behavior returns toward base crouch with slew limiting;
+it neither disables servos nor latches a fall state. Hardware validation of that
+threshold is not separately established in the handoff.
+
+## Legacy firmware
+
+Do not upload pitch-only v1/v2 onto current wiring. Their old mappings and recorded
+limitations are retained in [the history guide](../firmware/experiments/README.md).

@@ -2,7 +2,8 @@
  * @file push_ups.ino
  * @brief Performs five synchronized push-ups after a five-second delay.
  *
- * Hardware status: tested on the project robot.
+ * Updated for rear-left, rear-right, front-left, front-right wiring.
+ * Prior routine tested; this remapped repository revision needs a hardware retest.
  */
 
 #include <Wire.h>
@@ -19,11 +20,11 @@ constexpr uint8_t kPushUpCount = 5;
 constexpr int kPushUpTravelDeg = 30;
 
 constexpr int8_t kServoOffsets[kServoCount] = {
-    -3, 7, -4, -3, -2, -2, 3, -1, 3, 2, 4, 7};
-constexpr uint8_t kLeftThighs[] = {1, 4};
-constexpr uint8_t kLeftKnees[] = {2, 5};
-constexpr uint8_t kRightThighs[] = {7, 10};
-constexpr uint8_t kRightKnees[] = {8, 11};
+    -3, 7, -4, 3, -1, 3, -3, -2, -2, 2, 4, 7};
+constexpr uint8_t kLeftThighs[] = {1, 7};
+constexpr uint8_t kLeftKnees[] = {2, 8};
+constexpr uint8_t kRightThighs[] = {4, 10};
+constexpr uint8_t kRightKnees[] = {5, 11};
 
 Adafruit_PWMServoDriver pwm(kPwmAddress);
 

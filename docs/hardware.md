@@ -35,19 +35,19 @@ Do not copy this arrangement blindly: verify the exact PCB trace and Teensy VIN/
 
 ## Servo channel map
 
-This table is authoritative for the experimental sketches:
+This table applies to v3 and the remapped push-up demo. V1/v2 retain legacy wiring.
 
 | PCA9685 channel | Leg | Joint | Servo class | Final offset |
 | ---: | --- | --- | --- | ---: |
 | 0 | Rear left | Hip | 20 kg | -3 deg |
 | 1 | Rear left | Thigh | 20 kg | +7 deg |
 | 2 | Rear left | Knee | 35 kg | -4 deg |
-| 3 | Front left | Hip | 20 kg | -3 deg |
-| 4 | Front left | Thigh | 20 kg | -2 deg |
-| 5 | Front left | Knee | 35 kg | -2 deg |
-| 6 | Rear right | Hip | 20 kg | +3 deg |
-| 7 | Rear right | Thigh | 20 kg | -1 deg |
-| 8 | Rear right | Knee | 35 kg | +3 deg |
+| 3 | Rear right | Hip | 20 kg | +3 deg |
+| 4 | Rear right | Thigh | 20 kg | -1 deg |
+| 5 | Rear right | Knee | 35 kg | +3 deg |
+| 6 | Front left | Hip | 20 kg | -3 deg |
+| 7 | Front left | Thigh | 20 kg | -2 deg |
+| 8 | Front left | Knee | 35 kg | -2 deg |
 | 9 | Front right | Hip | 20 kg | +2 deg |
 | 10 | Front right | Thigh | 20 kg | +4 deg |
 | 11 | Front right | Knee | 35 kg | +7 deg |
@@ -55,5 +55,30 @@ This table is authoritative for the experimental sketches:
 The right-side thigh and knee servos are mechanically mirrored. A visually symmetric crouch therefore uses opposite angle directions on the left and right sides.
 
 ## Upstream map incompatibility
+
+The previous project wiring ordered legs rear-left, front-left, rear-right, front-right.
+The middle two connector groups were swapped. Offsets moved with the motors:
+old 6-8 became new 3-5; old 3-5 became new 6-8. See [legacy firmware](../firmware/experiments/README.md).
+
+## Installed MPU6050 wiring and axes
+
+| Breakout pin | Connection |
+| --- | --- |
+| VIN | Teensy 3.3V |
+| GND | Common ground |
+| SCL | Teensy 16 |
+| SDA | Teensy 17 |
+| 3Vo, INT | Unused |
+
+Configure SDA/SCL before starting Wire1, then set its clock to 400 kHz.
+The PCA9685 remains on primary Wire at 0x40; the MPU is on Wire1 at 0x68.
+Confirmed axes are +X rearward, +Y rightward, +Z upward.
+Pitch uses atan2(ax, sqrt(ay*ay + az*az)); roll uses atan2(ay, az).
+Gyro rates are -gyroY for pitch and +gyroX for roll.
+Positive pitch means rear raised; positive roll means right raised.
+The approximately 5-degree mounting roll bias is measured at startup in the settled
+stance. There is no hardcoded 5-degree subtraction.
+
+## Original Nova map
 
 The unmodified Nova SM3 v4.2 reference uses the channel groups `0-2`, `4-6`, `8-10`, and `12-14`, and it assigns leg names differently. The project robot uses `0-11` continuously. Uploading upstream motion code without recalibration and remapping can actuate the wrong joints.
